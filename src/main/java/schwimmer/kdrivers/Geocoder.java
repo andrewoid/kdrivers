@@ -1,25 +1,42 @@
 package schwimmer.kdrivers;
 
+import okhttp3.Cache;
+import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
 import retrofit2.Retrofit;
 import retrofit2.converter.jackson.JacksonConverterFactory;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 
 /**
  * Geocodes addresses to lat/lon using OpenStreetMap Nominatim API via Retrofit.
+ * Results are cached on disk via OkHttp to avoid repeated API calls.
  * See https://nominatim.org/release-docs/develop/api/Search/
  */
 public class Geocoder {
 
     private static final String DEFAULT_BASE_URL = "https://nominatim.openstreetmap.org/";
     private static final String USER_AGENT = "kdrivers/1.0 (delivery clustering app)";
+    private static final Path DEFAULT_CACHE_DIR = Path.of(".geocoder-cache");
+    private static final long CACHE_SIZE = 10L * 1024 * 1024; // 10 MB
+
+    private static final Interceptor CACHE_CONTROL_INTERCEPTOR = chain -> {
+        var response = chain.proceed(chain.request());
+        return response.newBuilder()
+                .header("Cache-Control", "max-age=86400")
+                .build();
+    };
 
     private final NominatimApi api;
 
     public Geocoder() {
-        this(createDefaultApi(DEFAULT_BASE_URL));
+        this(createDefaultApi(DEFAULT_BASE_URL, DEFAULT_CACHE_DIR));
+    }
+
+    public Geocoder(Path cacheDir) {
+        this(createDefaultApi(DEFAULT_BASE_URL, cacheDir));
     }
 
     Geocoder(NominatimApi api) {
@@ -28,18 +45,25 @@ public class Geocoder {
 
     /**
      * Create a Geocoder with a custom base URL (e.g. for testing with MockWebServer).
+     * Cache is disabled when using a custom base URL.
      */
     public static Geocoder forBaseUrl(String baseUrl) {
-        return new Geocoder(createDefaultApi(baseUrl));
+        return new Geocoder(createDefaultApi(baseUrl, null));
     }
 
-    private static NominatimApi createDefaultApi(String baseUrl) {
-        OkHttpClient client = new OkHttpClient.Builder()
+    private static NominatimApi createDefaultApi(String baseUrl, Path cacheDir) {
+        var builder = new OkHttpClient.Builder()
                 .addInterceptor(chain -> chain.proceed(
                         chain.request().newBuilder()
                                 .header("User-Agent", USER_AGENT)
-                                .build()))
-                .build();
+                                .build()));
+
+        if (cacheDir != null) {
+            builder.cache(new Cache(cacheDir.toFile(), CACHE_SIZE))
+                    .addNetworkInterceptor(CACHE_CONTROL_INTERCEPTOR);
+        }
+
+        OkHttpClient client = builder.build();
 
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl(baseUrl)
@@ -52,6 +76,7 @@ public class Geocoder {
 
     /**
      * Geocode an address to latitude and longitude.
+     * Caches results via OkHttp to avoid repeated API calls.
      *
      * @param address the address to look up (e.g. "123 Main St, New York NY")
      * @return Optional containing (lat, lon) if found, empty if not found or on error
