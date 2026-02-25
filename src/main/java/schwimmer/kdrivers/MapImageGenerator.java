@@ -1,18 +1,22 @@
 package schwimmer.kdrivers;
 
+import okhttp3.Cache;
+import okhttp3.Interceptor;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.nio.file.Path;
 import java.util.List;
 
 /**
  * Generates a map image showing delivery locations using OpenStreetMap tiles.
+ * Tiles are cached on disk via OkHttp.
  * See https://operations.osmfoundation.org/policies/tiles/
  */
 class MapImageGenerator {
@@ -21,8 +25,23 @@ class MapImageGenerator {
     private static final int TILE_SIZE = 256;
     private static final int MAP_WIDTH = 600;
     private static final int MAP_HEIGHT = 400;
+    private static final Path CACHE_DIR = Path.of(".map-tile-cache");
+    private static final long CACHE_SIZE = 50L * 1024 * 1024; // 50 MB
 
-    private final HttpClient httpClient = HttpClient.newBuilder()
+    private static final Interceptor CACHE_CONTROL_INTERCEPTOR = chain -> {
+        Response response = chain.proceed(chain.request());
+        return response.newBuilder()
+                .header("Cache-Control", "max-age=2592000")
+                .build();
+    };
+
+    private final OkHttpClient httpClient = new OkHttpClient.Builder()
+            .cache(new Cache(CACHE_DIR.toFile(), CACHE_SIZE))
+            .addInterceptor(chain -> chain.proceed(
+                    chain.request().newBuilder()
+                            .header("User-Agent", "kdrivers/1.0 (delivery routing app)")
+                            .build()))
+            .addNetworkInterceptor(CACHE_CONTROL_INTERCEPTOR)
             .build();
 
     byte[] generateMapImage(List<Delivery> deliveries) throws IOException {
@@ -130,19 +149,19 @@ class MapImageGenerator {
 
     private BufferedImage fetchTile(int x, int y, int zoom) {
         try {
-            Thread.sleep(550); // OSM: max 2 requests/second
             String url = String.format("%s/%d/%d/%d.png", TILE_URL, zoom, x, y);
-            var request = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
-                    .header("User-Agent", "kdrivers/1.0 (delivery routing app)")
-                    .GET()
+            Request request = new Request.Builder()
+                    .url(url)
+                    .get()
                     .build();
 
-            var response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
-            if (response.statusCode() != 200) {
-                return null;
+            try (Response response = httpClient.newCall(request).execute()) {
+                if (!response.isSuccessful() || response.body() == null) {
+                    return null;
+                }
+                byte[] body = response.body().bytes();
+                return ImageIO.read(new java.io.ByteArrayInputStream(body));
             }
-            return ImageIO.read(new java.io.ByteArrayInputStream(response.body()));
         } catch (Exception e) {
             return null;
         }

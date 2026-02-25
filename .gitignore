@@ -45,3 +45,4 @@ bin/
 ### Generated output ###
 routes/
 .geocoder-cache/
+.map-tile-cache/
