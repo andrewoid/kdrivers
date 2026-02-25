@@ -35,26 +35,28 @@ Clusters delivery addresses and assigns each cluster to the nearest driver. Gene
 
 ## CSV Format
 
-The CSV must have three columns: `name`, `address`, `driver`.
+The CSV must have columns: `name`, `address`, `driver`. An optional `ignore` column may be included.
 
 | Column   | Description                                                                 |
 |----------|-----------------------------------------------------------------------------|
 | name     | Person or delivery name                                                    |
 | address  | Street address (used for geocoding and clustering)                        |
 | driver   | If this column contains "Driver" (case-insensitive), the row is a driver   |
+| ignore   | Optional. If this column has any value, the row is excluded from processing |
 
 **Example:**
 
 ```csv
-name,address,driver
-Alice,123 Main St New York NY,Driver
-Bob,456 Oak Ave Boston MA,Driver
-John,321 Elm St New York NY,
-Jane,654 Maple Dr New York NY,
+name,address,driver,ignore
+Alice,123 Main St New York NY,Driver,
+Bob,456 Oak Ave Boston MA,Driver,
+John,321 Elm St New York NY,,
+Jane,654 Maple Dr New York NY,,x
 ```
 
 - **Alice** and **Bob** are drivers (they get assigned clusters of deliveries).
-- **John** and **Jane** are delivery addresses (clustered by location).
+- **John** is a delivery address (clustered by location).
+- **Jane** is excluded because the ignore column has a value.
 
 ## Algorithm
 

@@ -12,11 +12,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Loads and parses CSV files with name, address, driver columns.
+ * Loads and parses CSV files with name, address, driver, and optional ignore columns.
+ * Rows with any value in the ignore column are excluded.
  */
 class CsvLoader {
 
-    private static final String[] HEADERS = {"name", "address", "driver"};
+    private static final String[] HEADERS = {"name", "address", "driver", "ignore"};
     private static final String DRIVER_MARKER = "driver";
 
     record CsvRow(String name, String address, String driverColumn) {
@@ -54,8 +55,12 @@ class CsvLoader {
                 String name = get(record, "name");
                 String address = get(record, "address");
                 String driverCol = get(record, "driver");
+                String ignore = get(record, "ignore");
 
                 if (name == null || name.isBlank()) {
+                    continue;
+                }
+                if (ignore != null && !ignore.isBlank()) {
                     continue;
                 }
 
