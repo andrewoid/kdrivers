@@ -74,10 +74,11 @@ Jane,654 Maple Dr New York NY,,x
 
 PDFs are written to the `routes/` directory. Any existing PDFs in that directory are deleted before new ones are generated.
 
-| File                    | Description                                      |
-|-------------------------|--------------------------------------------------|
-| `{driver-name}.pdf`     | Route sheet for each driver (addresses + map)    |
-| `driver-assignments.txt`| Summary of all drivers and their deliveries      |
+| File                     | Description                                        |
+|--------------------------|----------------------------------------------------|
+| `{driver-name}.pdf`      | Route sheet for each driver (addresses + map)      |
+| `driver-assignments.txt` | Summary of all drivers and their deliveries        |
+| `unresolved-addresses.txt` | Names and addresses that could not be geocoded (only created if any exist) |
 
 ## Caching
 

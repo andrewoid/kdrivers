@@ -39,6 +39,7 @@ public class Main {
         }
 
         Geocoder geocoder = new Geocoder();
+        List<String> unresolvedAddresses = new ArrayList<>();
 
         // Geocode drivers
         List<Driver> drivers = new ArrayList<>();
@@ -47,8 +48,12 @@ public class Main {
             Driver driver = new Driver("DRV" + (i + 1), row.name(), row.address());
             if (!row.address().isBlank()) {
                 var result = geocoder.geocode(row.address());
-                result.coordinates().ifPresent(coords ->
-                        driver.setCoordinates(coords.latitude(), coords.longitude()));
+                if (result.coordinates().isEmpty()) {
+                    unresolvedAddresses.add(row.name() + " | " + row.address() + " (driver)");
+                } else {
+                    result.coordinates().ifPresent(coords ->
+                            driver.setCoordinates(coords.latitude(), coords.longitude()));
+                }
                 if (!result.fromCache()) {
                     Thread.sleep(1100);
                 }
@@ -65,8 +70,12 @@ public class Main {
             }
             final int index = i + 1;
             var result = geocoder.geocode(row.address());
-            result.coordinates().ifPresent(coords ->
-                    deliveries.add(new Delivery("D" + index, coords.latitude(), coords.longitude(), row.address(), row.name())));
+            if (result.coordinates().isEmpty()) {
+                unresolvedAddresses.add(row.name() + " | " + row.address() + " (delivery)");
+            } else {
+                result.coordinates().ifPresent(coords ->
+                        deliveries.add(new Delivery("D" + index, coords.latitude(), coords.longitude(), row.address(), row.name())));
+            }
             if (!result.fromCache()) {
                 Thread.sleep(1100);
             }
@@ -105,6 +114,14 @@ public class Main {
             Path summaryPath = outputDir.resolve("driver-assignments.txt");
             new DriverSummaryGenerator().generate(assignedDrivers, summaryPath);
             System.out.println("Generated: " + summaryPath.toAbsolutePath());
+
+            if (!unresolvedAddresses.isEmpty()) {
+                Path unresolvedPath = outputDir.resolve("unresolved-addresses.txt");
+                String content = "Addresses that could not be geocoded:\n\n" +
+                        String.join("\n", unresolvedAddresses);
+                Files.writeString(unresolvedPath, content);
+                System.out.println("Generated: " + unresolvedPath.toAbsolutePath());
+            }
         } catch (IOException e) {
             System.err.println("Failed to generate PDFs: " + e.getMessage());
         }
