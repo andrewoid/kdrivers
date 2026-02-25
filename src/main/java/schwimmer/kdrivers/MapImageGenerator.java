@@ -64,9 +64,9 @@ class MapImageGenerator {
         double minLon = deliveries.stream().mapToDouble(Delivery::longitude).min().orElse(0);
         double maxLon = deliveries.stream().mapToDouble(Delivery::longitude).max().orElse(0);
 
-        // Add padding
-        double latSpan = Math.max((maxLat - minLat) * 0.2, 0.005);
-        double lonSpan = Math.max((maxLon - minLon) * 0.2, 0.005);
+        // Minimal padding to zoom in as much as possible
+        double latSpan = Math.max((maxLat - minLat) * 0.05, 0.001);
+        double lonSpan = Math.max((maxLon - minLon) * 0.05, 0.001);
         minLat -= latSpan;
         maxLat += latSpan;
         minLon -= lonSpan;
@@ -131,7 +131,7 @@ class MapImageGenerator {
 
         for (int z = 18; z >= 1; z--) {
             double degPerTile = 360.0 / Math.pow(2, z);
-            if (maxSpan <= degPerTile * 3) {
+            if (maxSpan <= degPerTile * 1.2) {
                 return Math.min(z, 18);
             }
         }

@@ -26,8 +26,9 @@ class DriverSummaryGenerator {
             for (int i = 0; i < driver.getAssignedDeliveries().size(); i++) {
                 Delivery d = driver.getAssignedDeliveries().get(i);
                 sb.append("  ").append(i + 1).append(". ").append(d.address());
-                if (d.name() != null && !d.name().isBlank()) {
-                    sb.append(" - ").append(d.name());
+                String displayName = Delivery.formatDisplayName(d.name());
+                if (displayName != null && !displayName.isBlank()) {
+                    sb.append(" - ").append(displayName);
                 }
                 sb.append("\n");
             }

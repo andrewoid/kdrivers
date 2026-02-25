@@ -63,8 +63,9 @@ class DriverRoutePdfGenerator {
                 for (int i = 0; i < deliveries.size(); i++) {
                     Delivery d = deliveries.get(i);
                     String line = (i + 1) + ". " + d.address();
-                    if (d.name() != null && !d.name().isBlank()) {
-                        line += " - " + d.name();
+                    String displayName = Delivery.formatDisplayName(d.name());
+                    if (displayName != null && !displayName.isBlank()) {
+                        line += " - " + displayName;
                     }
                     content.beginText();
                     content.newLineAtOffset(margin, y);
@@ -82,14 +83,6 @@ class DriverRoutePdfGenerator {
                     float imageWidth = 400;
                     float imageHeight = 267; // 4:3 aspect ratio for 400 width
                     content.drawImage(mapImage, margin, y - imageHeight, imageWidth, imageHeight);
-
-                    // Legend
-                    y -= imageHeight + 10;
-                    content.beginText();
-                    content.setFont(bodyFont, 9);
-                    content.newLineAtOffset(margin, y);
-                    content.showText("Map numbers correspond to delivery order above.");
-                    content.endText();
                 }
             }
 
