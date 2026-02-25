@@ -45,23 +45,31 @@ public class Geocoder {
 
     /**
      * Create a Geocoder with a custom base URL (e.g. for testing with MockWebServer).
-     * Cache is disabled when using a custom base URL.
+     * Uses a temp directory for cache.
      */
     public static Geocoder forBaseUrl(String baseUrl) {
-        return new Geocoder(createDefaultApi(baseUrl, null));
+        Path cacheDir = Path.of(System.getProperty("java.io.tmpdir"), "geocoder-cache");
+        return new Geocoder(createDefaultApi(baseUrl, cacheDir));
     }
+
+    private static final Interceptor CACHE_MISS_INTERCEPTOR = chain -> {
+        var request = chain.request();
+        var response = chain.proceed(request);
+        if (response.cacheResponse() == null && response.networkResponse() != null) {
+            System.err.println("Geocoder cache miss: " + request.url());
+        }
+        return response;
+    };
 
     private static NominatimApi createDefaultApi(String baseUrl, Path cacheDir) {
         var builder = new OkHttpClient.Builder()
+                .cache(new Cache(cacheDir.toFile(), CACHE_SIZE))
+                .addInterceptor(CACHE_MISS_INTERCEPTOR)
                 .addInterceptor(chain -> chain.proceed(
                         chain.request().newBuilder()
                                 .header("User-Agent", USER_AGENT)
-                                .build()));
-
-        if (cacheDir != null) {
-            builder.cache(new Cache(cacheDir.toFile(), CACHE_SIZE))
-                    .addNetworkInterceptor(CACHE_CONTROL_INTERCEPTOR);
-        }
+                                .build()))
+                .addNetworkInterceptor(CACHE_CONTROL_INTERCEPTOR);
 
         OkHttpClient client = builder.build();
 

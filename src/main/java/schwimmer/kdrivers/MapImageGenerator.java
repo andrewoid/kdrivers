@@ -35,8 +35,18 @@ class MapImageGenerator {
                 .build();
     };
 
+    private static final Interceptor CACHE_MISS_INTERCEPTOR = chain -> {
+        Request request = chain.request();
+        Response response = chain.proceed(request);
+        if (response.cacheResponse() == null && response.networkResponse() != null) {
+            System.err.println("Map tile cache miss: " + request.url());
+        }
+        return response;
+    };
+
     private final OkHttpClient httpClient = new OkHttpClient.Builder()
             .cache(new Cache(CACHE_DIR.toFile(), CACHE_SIZE))
+            .addInterceptor(CACHE_MISS_INTERCEPTOR)
             .addInterceptor(chain -> chain.proceed(
                     chain.request().newBuilder()
                             .header("User-Agent", "kdrivers/1.0 (delivery routing app)")

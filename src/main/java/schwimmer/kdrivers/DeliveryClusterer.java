@@ -1,103 +1,164 @@
 package schwimmer.kdrivers;
 
-import org.apache.commons.math3.ml.clustering.CentroidCluster;
-import org.apache.commons.math3.ml.clustering.KMeansPlusPlusClusterer;
-
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
- * Clusters deliveries using K-means++ and assigns each cluster to the nearest driver by proximity.
+ * Assigns deliveries to drivers by nearest-driver distance. Each cluster has exactly one driver.
+ * Max 15 deliveries per cluster (enforced via redistribution).
  */
 public class DeliveryClusterer {
 
-    private final int numClusters;
-    private final int maxIterations;
+    private static final int DEFAULT_MAX_DELIVERIES = 15;
 
-    public DeliveryClusterer(int numClusters) {
-        this(numClusters, 100);
+    private final int maxDeliveriesPerCluster;
+
+    public DeliveryClusterer() {
+        this(DEFAULT_MAX_DELIVERIES);
     }
 
-    public DeliveryClusterer(int numClusters, int maxIterations) {
-        this.numClusters = numClusters;
-        this.maxIterations = maxIterations;
+    public DeliveryClusterer(int maxDeliveriesPerCluster) {
+        this.maxDeliveriesPerCluster = maxDeliveriesPerCluster;
     }
 
     /**
-     * Clusters deliveries into N groups and assigns each group to the driver nearest the cluster centroid.
+     * Assigns each delivery to the nearest driver. Each driver's address is included in their cluster.
+     * Redistributes if any cluster exceeds maxDeliveriesPerCluster.
      *
-     * @param deliveries the deliveries to cluster
-     * @param drivers   the drivers to assign (must have at least numClusters drivers)
-     * @return list of drivers with their assigned delivery clusters
+     * @param deliveries non-driver deliveries to assign
+     * @param drivers   drivers (must have coordinates for assignment)
+     * @return drivers with their assigned deliveries
      */
     public List<Driver> clusterAndAssign(List<Delivery> deliveries, List<Driver> drivers) {
-        if (deliveries.isEmpty()) {
-            return new ArrayList<>(drivers);
+        if (drivers.isEmpty()) {
+            return new ArrayList<>();
         }
 
-        int k = Math.min(numClusters, deliveries.size());
-        if (k > drivers.size()) {
+        int totalAddresses = deliveries.size() + drivers.size();
+        if (totalAddresses > drivers.size() * maxDeliveriesPerCluster) {
             throw new IllegalArgumentException(
-                    "Need at least " + k + " drivers but only " + drivers.size() + " provided");
+                    "Total addresses (" + totalAddresses + ") exceeds capacity: " + drivers.size()
+                            + " drivers * " + maxDeliveriesPerCluster + " max = " + (drivers.size() * maxDeliveriesPerCluster));
         }
 
-        List<DeliveryPoint> points = deliveries.stream()
-                .map(DeliveryPoint::new)
-                .collect(Collectors.toList());
+        // Build clusters: Map<Driver, List<Delivery>>
+        List<List<Delivery>> clusters = new ArrayList<>();
+        for (int i = 0; i < drivers.size(); i++) {
+            clusters.add(new ArrayList<>());
+        }
 
-        KMeansPlusPlusClusterer<DeliveryPoint> clusterer = new KMeansPlusPlusClusterer<>(k, maxIterations);
-        List<CentroidCluster<DeliveryPoint>> clusters = clusterer.cluster(points);
+        // Add each driver's address to their own cluster
+        for (int i = 0; i < drivers.size(); i++) {
+            Driver driver = drivers.get(i);
+            if (driver.hasCoordinates()) {
+                Delivery driverDelivery = new Delivery(
+                        "DRV" + (i + 1) + "-home",
+                        driver.getLatitude(),
+                        driver.getLongitude(),
+                        driver.getAddress());
+                clusters.get(i).add(driverDelivery);
+            }
+        }
 
-        // Assign each cluster to the nearest driver (one-to-one, by proximity to centroid)
-        Set<Driver> assignedDrivers = new HashSet<>();
-        List<Driver> result = new ArrayList<>();
-
-        for (CentroidCluster<DeliveryPoint> cluster : clusters) {
-            double[] centroid = cluster.getCenter().getPoint();
-            double centroidLat = centroid[0];
-            double centroidLon = centroid[1];
-
-            Driver nearest = null;
+        // Assign each non-driver delivery to nearest driver (with coordinates)
+        for (Delivery delivery : deliveries) {
+            int nearestIdx = -1;
             double nearestDist = Double.MAX_VALUE;
 
-            for (Driver driver : drivers) {
-                if (assignedDrivers.contains(driver)) {
+            for (int i = 0; i < drivers.size(); i++) {
+                Driver driver = drivers.get(i);
+                if (!driver.hasCoordinates()) {
                     continue;
                 }
-                double dist = driver.hasCoordinates()
-                        ? distance(centroidLat, centroidLon, driver.getLatitude(), driver.getLongitude())
-                        : Double.MAX_VALUE;
+                double dist = distance(
+                        delivery.latitude(), delivery.longitude(),
+                        driver.getLatitude(), driver.getLongitude());
                 if (dist < nearestDist) {
                     nearestDist = dist;
-                    nearest = driver;
+                    nearestIdx = i;
                 }
             }
 
-            if (nearest == null) {
-                nearest = drivers.stream()
-                        .filter(d -> !assignedDrivers.contains(d))
-                        .findFirst()
-                        .orElseThrow();
-            }
-
-            assignedDrivers.add(nearest);
-            for (DeliveryPoint point : cluster.getPoints()) {
-                nearest.addDelivery(point.delivery());
-            }
-            result.add(nearest);
-        }
-
-        // Add drivers that weren't assigned any cluster (empty assignment)
-        for (Driver driver : drivers) {
-            if (!assignedDrivers.contains(driver)) {
-                result.add(driver);
+            if (nearestIdx >= 0) {
+                clusters.get(nearestIdx).add(delivery);
             }
         }
 
-        return result;
+        // Redistribute: move deliveries from oversized clusters to underfull ones
+        boolean changed = true;
+        while (changed) {
+            changed = false;
+            for (int donorIdx = 0; donorIdx < clusters.size(); donorIdx++) {
+                List<Delivery> donorCluster = clusters.get(donorIdx);
+                Driver donorDriver = drivers.get(donorIdx);
+                if (!donorDriver.hasCoordinates() || donorCluster.size() <= maxDeliveriesPerCluster) {
+                    continue;
+                }
+
+                // Find best delivery to move: skip driver's home (first one), pick farthest from donor
+                Delivery bestToMove = null;
+                double bestScore = -1;
+                int bestToMoveIdx = -1;
+
+                for (int j = 0; j < donorCluster.size(); j++) {
+                    Delivery d = donorCluster.get(j);
+                    if (d.id().endsWith("-home")) {
+                        continue; // Never move driver's address
+                    }
+                    double distFromDonor = distance(d.latitude(), d.longitude(),
+                            donorDriver.getLatitude(), donorDriver.getLongitude());
+                    if (distFromDonor > bestScore) {
+                        bestScore = distFromDonor;
+                        bestToMove = d;
+                        bestToMoveIdx = j;
+                    }
+                }
+
+                if (bestToMove == null) {
+                    continue;
+                }
+
+                // Find recipient: nearest driver with room (excluding donor)
+                int recipientIdx = -1;
+                double nearestRecipientDist = Double.MAX_VALUE;
+
+                for (int i = 0; i < drivers.size(); i++) {
+                    if (i == donorIdx) {
+                        continue;
+                    }
+                    List<Delivery> recipientCluster = clusters.get(i);
+                    if (recipientCluster.size() >= maxDeliveriesPerCluster) {
+                        continue;
+                    }
+                    Driver recipientDriver = drivers.get(i);
+                    if (!recipientDriver.hasCoordinates()) {
+                        continue;
+                    }
+                    double dist = distance(bestToMove.latitude(), bestToMove.longitude(),
+                            recipientDriver.getLatitude(), recipientDriver.getLongitude());
+                    if (dist < nearestRecipientDist) {
+                        nearestRecipientDist = dist;
+                        recipientIdx = i;
+                    }
+                }
+
+                if (recipientIdx >= 0) {
+                    donorCluster.remove(bestToMoveIdx);
+                    clusters.get(recipientIdx).add(bestToMove);
+                    changed = true;
+                    break; // Restart loop after modification
+                }
+            }
+        }
+
+        // Assign clusters to drivers
+        for (int i = 0; i < drivers.size(); i++) {
+            for (Delivery d : clusters.get(i)) {
+                drivers.get(i).addDelivery(d);
+            }
+        }
+
+        return drivers;
     }
 
     private static double distance(double lat1, double lon1, double lat2, double lon2) {

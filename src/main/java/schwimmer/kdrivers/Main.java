@@ -66,10 +66,9 @@ public class Main {
             Thread.sleep(1100);
         }
 
-        int numClusters = Math.min(drivers.size(), deliveries.isEmpty() ? 0 : deliveries.size());
-        List<Driver> assignedDrivers = new DeliveryClusterer(numClusters).clusterAndAssign(deliveries, drivers);
+        List<Driver> assignedDrivers = new DeliveryClusterer(15).clusterAndAssign(deliveries, drivers);
 
-        System.out.println("Delivery clustering results (" + numClusters + " clusters):\n");
+        System.out.println("Delivery clustering results:\n");
         for (Driver driver : assignedDrivers) {
             System.out.println(driver);
             for (Delivery d : driver.getAssignedDeliveries()) {
