@@ -56,7 +56,17 @@ Jane,654 Maple Dr New York NY,
 - **Alice** and **Bob** are drivers (they get assigned clusters of deliveries).
 - **John** and **Jane** are delivery addresses (clustered by location).
 
-The program geocodes addresses via OpenStreetMap Nominatim and clusters deliveries using K-means. Each cluster is assigned to the driver whose address is closest to the cluster centroid.
+## Algorithm
+
+1. **Geocoding** — Addresses are geocoded to latitude/longitude via OpenStreetMap Nominatim.
+
+2. **Nearest-driver assignment** — Each delivery is assigned to the driver whose home address is closest (Euclidean distance on lat/lon). Each driver's home is included in their own cluster.
+
+3. **Capacity limit** — Clusters are capped at 15 deliveries (configurable). If a cluster exceeds this limit, the algorithm redistributes.
+
+4. **Redistribution** — For oversized clusters, the delivery farthest from the donor driver is moved to the nearest driver with available capacity. This repeats until all clusters are within the limit.
+
+5. **Output** — Route sheets and a summary are generated for each driver.
 
 ## Output
 
