@@ -72,7 +72,7 @@ public class Main {
             }
         }
 
-        List<Driver> assignedDrivers = new NearestDeliveryClusterer().clusterAndAssign(deliveries, drivers);
+        List<Driver> assignedDrivers = new KMeansDeliveryClusterer().clusterAndAssign(deliveries, drivers);
 
         System.out.println("Delivery clustering results:\n");
         for (Driver driver : assignedDrivers) {

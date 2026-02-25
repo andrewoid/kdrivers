@@ -3,6 +3,8 @@ package schwimmer.kdrivers;
 import org.apache.commons.math3.ml.clustering.CentroidCluster;
 import org.apache.commons.math3.ml.clustering.Clusterable;
 import org.apache.commons.math3.ml.clustering.KMeansPlusPlusClusterer;
+import org.apache.commons.math3.ml.distance.EuclideanDistance;
+import org.apache.commons.math3.random.JDKRandomGenerator;
 
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -49,7 +51,9 @@ public class KMeansDeliveryClusterer implements DeliveryClusterer {
         }
 
         int k = Math.min(drivers.size(), deliveries.size());
-        var clusterer = new KMeansPlusPlusClusterer<ClusterableDelivery>(k);
+        var random = new JDKRandomGenerator();
+        random.setSeed(42);
+        var clusterer = new KMeansPlusPlusClusterer<ClusterableDelivery>(k, -1, new EuclideanDistance(), random);
         List<CentroidCluster<ClusterableDelivery>> centroidClusters = clusterer.cluster(clusterableDeliveries);
 
         // 1:1 cluster-to-driver assignment: each cluster goes to nearest unassigned driver
