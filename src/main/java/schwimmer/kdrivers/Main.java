@@ -96,8 +96,8 @@ public class Main {
                 pdfGenerator.generatePdf(driver, pdfPath);
                 System.out.println("Generated: " + pdfPath.toAbsolutePath());
             }
-            Path summaryPath = outputDir.resolve("driver-assignments.pdf");
-            new DriverSummaryPdfGenerator().generatePdf(assignedDrivers, summaryPath);
+            Path summaryPath = outputDir.resolve("driver-assignments.txt");
+            new DriverSummaryGenerator().generate(assignedDrivers, summaryPath);
             System.out.println("Generated: " + summaryPath.toAbsolutePath());
         } catch (IOException e) {
             System.err.println("Failed to generate PDFs: " + e.getMessage());

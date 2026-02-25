@@ -1,6 +1,6 @@
 # K-Drivers
 
-Clusters delivery addresses using K-means and assigns each cluster to the nearest driver. Generates PDF route sheets for each driver and a summary of all assignments.
+Clusters delivery addresses and assigns each cluster to the nearest driver. Generates PDF route sheets for each driver and a text summary of all assignments.
 
 ## Prerequisites
 
@@ -65,7 +65,7 @@ PDFs are written to the `routes/` directory. Any existing PDFs in that directory
 | File                    | Description                                      |
 |-------------------------|--------------------------------------------------|
 | `{driver-name}.pdf`     | Route sheet for each driver (addresses + map)    |
-| `driver-assignments.pdf`| Summary of all drivers and their deliveries      |
+| `driver-assignments.txt`| Summary of all drivers and their deliveries      |
 
 ## Caching
 
