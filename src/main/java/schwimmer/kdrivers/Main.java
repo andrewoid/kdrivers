@@ -1,5 +1,8 @@
 package schwimmer.kdrivers;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -43,6 +46,24 @@ public class Main {
             }
             System.out.println();
         }
+
+        // Generate PDF route sheet per driver
+        Path outputDir = Path.of("routes");
+        try {
+            Files.createDirectories(outputDir);
+            DriverRoutePdfGenerator pdfGenerator = new DriverRoutePdfGenerator();
+            for (Driver driver : assignedDrivers) {
+                Path pdfPath = outputDir.resolve(sanitizeFilename(driver.getName()) + ".pdf");
+                pdfGenerator.generatePdf(driver, pdfPath);
+                System.out.println("Generated: " + pdfPath.toAbsolutePath());
+            }
+        } catch (IOException e) {
+            System.err.println("Failed to generate PDFs: " + e.getMessage());
+        }
+    }
+
+    private static String sanitizeFilename(String name) {
+        return name.replaceAll("[^a-zA-Z0-9.-]", "_");
     }
 
     private static List<Delivery> sampleDeliveries() {
