@@ -81,6 +81,16 @@ public class Main {
         Path outputDir = Path.of("routes");
         try {
             Files.createDirectories(outputDir);
+            try (var stream = Files.list(outputDir)) {
+                stream.filter(p -> p.toString().toLowerCase().endsWith(".pdf"))
+                        .forEach(p -> {
+                            try {
+                                Files.delete(p);
+                            } catch (IOException e) {
+                                System.err.println("Could not delete " + p + ": " + e.getMessage());
+                            }
+                        });
+            }
             DriverRoutePdfGenerator pdfGenerator = new DriverRoutePdfGenerator(includeMap);
             for (Driver driver : assignedDrivers) {
                 Path pdfPath = outputDir.resolve(sanitizeFilename(driver.getName()) + ".pdf");
