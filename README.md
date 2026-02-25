@@ -61,7 +61,7 @@ Jane,654 Maple Dr New York NY,,,x
 
 ## Algorithm
 
-1. **Geocoding** — Addresses are geocoded to latitude/longitude via OpenStreetMap Nominatim.
+1. **Geocoding** — Addresses are geocoded to latitude/longitude via [OpenStreetMap Nominatim](https://nominatim.org/release-docs/develop/api/Search/).
 
 2. **Nearest-driver assignment** — Each delivery is assigned to the driver whose home address is closest (Euclidean distance on lat/lon). Each driver's home is included in their own cluster.
 
@@ -87,3 +87,24 @@ PDFs are written to the `routes/` directory. Any existing PDFs in that directory
 - **Map tiles**: OSM tiles are cached in `.map-tile-cache/`.
 
 Repeat runs with the same addresses are faster due to caching.
+
+## Libraries and APIs
+
+### External APIs
+
+| Service | Purpose | Link |
+|---------|---------|------|
+| [Nominatim](https://nominatim.org/release-docs/develop/api/Search/) | Geocoding (address to lat/lon) | https://nominatim.org/release-docs/develop/api/Search/ |
+| [OpenStreetMap Tiles](https://operations.osmfoundation.org/policies/tiles/) | Map tiles for route PDFs | https://tile.openstreetmap.org/ |
+
+### Dependencies
+
+| Library | Purpose | Link |
+|---------|---------|------|
+| [Apache Commons Math](https://commons.apache.org/proper/commons-math/) | K-means clustering | https://commons.apache.org/proper/commons-math/ |
+| [Jackson](https://github.com/FasterXML/jackson) | JSON parsing for Nominatim | https://github.com/FasterXML/jackson |
+| [Retrofit](https://square.github.io/retrofit/) | HTTP client for Nominatim API | https://square.github.io/retrofit/ |
+| [OkHttp](https://square.github.io/okhttp/) | HTTP client and caching (via Retrofit) | https://square.github.io/okhttp/ |
+| [Apache PDFBox](https://pdfbox.apache.org/) | PDF generation | https://pdfbox.apache.org/ |
+| [Apache Commons CSV](https://commons.apache.org/proper/commons-csv/) | CSV parsing | https://commons.apache.org/proper/commons-csv/ |
+| [JUnit 5](https://junit.org/junit5/) | Testing | https://junit.org/junit5/ |

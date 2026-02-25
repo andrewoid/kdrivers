@@ -10,12 +10,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Clusters deliveries using K-means with 1.7 * drivers clusters, assigns each cluster to the
- * nearest driver with capacity, and redistributes when any driver exceeds 15 deliveries.
+ * Clusters deliveries using K-means with 1.5 * drivers clusters, assigns each cluster to a driver
+ * balancing proximity and workload, and redistributes when any driver exceeds 15 deliveries.
  */
 public class KMeansDeliveryClusterer implements DeliveryClusterer {
 
-    private static final int MAX_DELIVERIES_PER_DRIVER = 15;
+    private static final int MAX_DELIVERIES_PER_DRIVER = 14;
+    /** Weight for load balancing: score = distance * (1 + this * currentCount). Higher = more balance. */
+    private static final double BALANCE_WEIGHT = 0.08;
 
     @Override
     public List<Driver> clusterAndAssign(List<Delivery> deliveries, List<Driver> drivers) {
@@ -40,9 +42,8 @@ public class KMeansDeliveryClusterer implements DeliveryClusterer {
             clusterableDeliveries.add(new ClusterableDelivery(d));
         }
 
-        int k = Math.max(1, Math.min((int) Math.ceil(1.7 * drivers.size()), deliveries.size()));
-        var random = new JDKRandomGenerator();
-        random.setSeed(42);
+        int k = Math.max(1, Math.min((int) Math.ceil(1.5 * drivers.size()), deliveries.size()));
+        var random = new JDKRandomGenerator(42);
         var clusterer = new KMeansPlusPlusClusterer<ClusterableDelivery>(k, -1, new EuclideanDistance(), random);
         List<CentroidCluster<ClusterableDelivery>> centroidClusters = clusterer.cluster(clusterableDeliveries);
 
@@ -57,8 +58,8 @@ public class KMeansDeliveryClusterer implements DeliveryClusterer {
             double cx = centroid[0];
             double cy = centroid[1];
 
-            int nearestDriver = -1;
-            double nearestDist = Double.MAX_VALUE;
+            int bestDriver = -1;
+            double bestScore = Double.MAX_VALUE;
 
             for (int i = 0; i < drivers.size(); i++) {
                 Driver driver = drivers.get(i);
@@ -66,15 +67,17 @@ public class KMeansDeliveryClusterer implements DeliveryClusterer {
                     continue;
                 }
                 double dist = distance(cx, cy, driver.getLatitude(), driver.getLongitude());
-                if (dist < nearestDist) {
-                    nearestDist = dist;
-                    nearestDriver = i;
+                int currentCount = clustersByDriver.get(i).size();
+                double score = dist * (1 + BALANCE_WEIGHT * currentCount);
+                if (score < bestScore) {
+                    bestScore = score;
+                    bestDriver = i;
                 }
             }
 
-            if (nearestDriver >= 0) {
+            if (bestDriver >= 0) {
                 for (ClusterableDelivery cd : cluster.getPoints()) {
-                    clustersByDriver.get(nearestDriver).add(cd.delivery);
+                    clustersByDriver.get(bestDriver).add(cd.delivery);
                 }
             }
         }
@@ -110,9 +113,9 @@ public class KMeansDeliveryClusterer implements DeliveryClusterer {
                     continue;
                 }
 
-                // Find recipient: nearest driver with room (excluding donor)
+                // Find recipient: driver with room that minimizes distance + balance (prefer underloaded)
                 int recipientIdx = -1;
-                double nearestRecipientDist = Double.MAX_VALUE;
+                double bestRecipientScore = Double.MAX_VALUE;
 
                 for (int i = 0; i < drivers.size(); i++) {
                     if (i == donorIdx) {
@@ -128,8 +131,10 @@ public class KMeansDeliveryClusterer implements DeliveryClusterer {
                     }
                     double dist = distance(bestToMove.latitude(), bestToMove.longitude(),
                             recipientDriver.getLatitude(), recipientDriver.getLongitude());
-                    if (dist < nearestRecipientDist) {
-                        nearestRecipientDist = dist;
+                    int currentCount = recipientCluster.size();
+                    double score = dist * (1 + BALANCE_WEIGHT * currentCount);
+                    if (score < bestRecipientScore) {
+                        bestRecipientScore = score;
                         recipientIdx = i;
                     }
                 }
