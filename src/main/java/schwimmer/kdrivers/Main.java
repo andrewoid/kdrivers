@@ -6,18 +6,24 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
 /**
  * Example program that clusters deliveries using K-means and assigns clusters to drivers.
  */
 public class Main {
 
     public static void main(String[] args) throws InterruptedException {
+        // Parse --no-map flag
+        boolean includeMap = true;
+        List<String> argList = new ArrayList<>(Arrays.asList(args));
+        if (argList.remove("--no-map")) {
+            includeMap = false;
+        }
+
         List<Delivery> deliveries;
 
-        if (args.length > 0) {
+        if (!argList.isEmpty()) {
             // Geocode addresses from command line
-            deliveries = geocodeAddresses(args);
+            deliveries = geocodeAddresses(argList.toArray(new String[0]));
             if (deliveries.isEmpty()) {
                 System.err.println("No addresses could be geocoded. Using sample data.");
                 deliveries = sampleDeliveries();
@@ -47,16 +53,20 @@ public class Main {
             System.out.println();
         }
 
-        // Generate PDF route sheet per driver
+        // Generate PDFs
         Path outputDir = Path.of("routes");
         try {
             Files.createDirectories(outputDir);
-            DriverRoutePdfGenerator pdfGenerator = new DriverRoutePdfGenerator();
+            DriverRoutePdfGenerator pdfGenerator = new DriverRoutePdfGenerator(includeMap);
             for (Driver driver : assignedDrivers) {
                 Path pdfPath = outputDir.resolve(sanitizeFilename(driver.getName()) + ".pdf");
                 pdfGenerator.generatePdf(driver, pdfPath);
                 System.out.println("Generated: " + pdfPath.toAbsolutePath());
             }
+            // Generate summary PDF listing all drivers and their deliveries
+            Path summaryPath = outputDir.resolve("driver-assignments.pdf");
+            new DriverSummaryPdfGenerator().generatePdf(assignedDrivers, summaryPath);
+            System.out.println("Generated: " + summaryPath.toAbsolutePath());
         } catch (IOException e) {
             System.err.println("Failed to generate PDFs: " + e.getMessage());
         }

@@ -13,11 +13,20 @@ import java.nio.file.Path;
 import java.util.List;
 
 /**
- * Generates a PDF route sheet for each driver with address list and map.
+ * Generates a PDF route sheet for each driver with address list and optional map.
  */
 class DriverRoutePdfGenerator {
 
     private final MapImageGenerator mapGenerator = new MapImageGenerator();
+    private final boolean includeMap;
+
+    DriverRoutePdfGenerator() {
+        this(true);
+    }
+
+    DriverRoutePdfGenerator(boolean includeMap) {
+        this.includeMap = includeMap;
+    }
 
     void generatePdf(Driver driver, Path outputPath) throws IOException {
         List<Delivery> deliveries = driver.getAssignedDeliveries();
@@ -61,21 +70,23 @@ class DriverRoutePdfGenerator {
                 }
                 y -= 20;
 
-                // Map
-                byte[] mapImageBytes = mapGenerator.generateMapImage(deliveries);
-                PDImageXObject mapImage = PDImageXObject.createFromByteArray(document, mapImageBytes, "map.png");
+                if (includeMap) {
+                    // Map
+                    byte[] mapImageBytes = mapGenerator.generateMapImage(deliveries);
+                    PDImageXObject mapImage = PDImageXObject.createFromByteArray(document, mapImageBytes, "map.png");
 
-                float imageWidth = 400;
-                float imageHeight = 267; // 4:3 aspect ratio for 400 width
-                content.drawImage(mapImage, margin, y - imageHeight, imageWidth, imageHeight);
+                    float imageWidth = 400;
+                    float imageHeight = 267; // 4:3 aspect ratio for 400 width
+                    content.drawImage(mapImage, margin, y - imageHeight, imageWidth, imageHeight);
 
-                // Legend
-                y -= imageHeight + 10;
-                content.beginText();
-                content.setFont(bodyFont, 9);
-                content.newLineAtOffset(margin, y);
-                content.showText("Map numbers correspond to delivery order above.");
-                content.endText();
+                    // Legend
+                    y -= imageHeight + 10;
+                    content.beginText();
+                    content.setFont(bodyFont, 9);
+                    content.newLineAtOffset(margin, y);
+                    content.showText("Map numbers correspond to delivery order above.");
+                    content.endText();
+                }
             }
 
             document.save(outputPath.toFile());
