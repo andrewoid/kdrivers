@@ -66,7 +66,7 @@ public class Main {
             final int index = i + 1;
             var result = geocoder.geocode(row.address());
             result.coordinates().ifPresent(coords ->
-                    deliveries.add(new Delivery("D" + index, coords.latitude(), coords.longitude(), row.address())));
+                    deliveries.add(new Delivery("D" + index, coords.latitude(), coords.longitude(), row.address(), row.name())));
             if (!result.fromCache()) {
                 Thread.sleep(1100);
             }

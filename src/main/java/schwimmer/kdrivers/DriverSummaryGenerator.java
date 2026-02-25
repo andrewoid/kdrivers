@@ -11,15 +11,25 @@ import java.util.List;
 class DriverSummaryGenerator {
 
     void generate(List<Driver> drivers, Path outputPath) throws IOException {
+        int totalDeliveries = drivers.stream()
+                .mapToInt(d -> d.getAssignedDeliveries().size())
+                .sum();
+
         StringBuilder sb = new StringBuilder();
         sb.append("Driver Assignment Summary\n\n");
+        sb.append("Drivers: ").append(drivers.size()).append("\n");
+        sb.append("Total deliveries: ").append(totalDeliveries).append("\n\n");
 
         for (Driver driver : drivers) {
             sb.append(driver.getName()).append(" (").append(driver.getAssignedDeliveries().size()).append(" deliveries)\n");
 
             for (int i = 0; i < driver.getAssignedDeliveries().size(); i++) {
                 Delivery d = driver.getAssignedDeliveries().get(i);
-                sb.append("  ").append(i + 1).append(". ").append(d.address()).append("\n");
+                sb.append("  ").append(i + 1).append(". ").append(d.address());
+                if (d.name() != null && !d.name().isBlank()) {
+                    sb.append(" - ").append(d.name());
+                }
+                sb.append("\n");
             }
             sb.append("\n");
         }

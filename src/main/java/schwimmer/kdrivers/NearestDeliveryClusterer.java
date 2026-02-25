@@ -48,7 +48,8 @@ public class NearestDeliveryClusterer implements DeliveryClusterer {
                         "DRV" + (i + 1) + "-home",
                         driver.getLatitude(),
                         driver.getLongitude(),
-                        driver.getAddress());
+                        driver.getAddress(),
+                        driver.getName());
                 clusters.get(i).add(driverDelivery);
             }
         }
