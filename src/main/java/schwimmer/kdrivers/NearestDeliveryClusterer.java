@@ -40,20 +40,6 @@ public class NearestDeliveryClusterer implements DeliveryClusterer {
             clusters.add(new ArrayList<>());
         }
 
-        // Add each driver's address to their own cluster
-        for (int i = 0; i < drivers.size(); i++) {
-            Driver driver = drivers.get(i);
-            if (driver.hasCoordinates()) {
-                Delivery driverDelivery = new Delivery(
-                        "DRV" + (i + 1) + "-home",
-                        driver.getLatitude(),
-                        driver.getLongitude(),
-                        driver.getAddress(),
-                        driver.getName());
-                clusters.get(i).add(driverDelivery);
-            }
-        }
-
         // Assign each non-driver delivery to nearest driver (with coordinates)
         for (Delivery delivery : deliveries) {
             int nearestIdx = -1;
