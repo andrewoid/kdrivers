@@ -62,7 +62,7 @@ class DriverRoutePdfGenerator {
                 content.setFont(bodyFont, 10);
                 for (int i = 0; i < deliveries.size(); i++) {
                     Delivery d = deliveries.get(i);
-                    String line = (i + 1) + ". " + d.address();
+                    String line = (i + 1) + ". " + d.addressForDisplay();
                     String displayName = Delivery.formatDisplayName(d.name());
                     if (displayName != null && !displayName.isBlank()) {
                         line += " - " + displayName;

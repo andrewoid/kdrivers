@@ -74,7 +74,7 @@ public class Main {
                 unresolvedAddresses.add(row.name() + " | " + row.address() + " (delivery)");
             } else {
                 result.coordinates().ifPresent(coords ->
-                        deliveries.add(new Delivery("D" + index, coords.latitude(), coords.longitude(), row.address(), row.name())));
+                        deliveries.add(new Delivery("D" + index, coords.latitude(), coords.longitude(), row.address(), row.name(), row.apt())));
             }
             if (!result.fromCache()) {
                 Thread.sleep(1100);

@@ -2,8 +2,19 @@ package schwimmer.kdrivers;
 
 /**
  * Represents a delivery with geographic coordinates for clustering.
+ * The apt field is for display only (not used for geocoding).
  */
-public record Delivery(String id, double latitude, double longitude, String address, String name) {
+public record Delivery(String id, double latitude, double longitude, String address, String name, String apt) {
+
+    /**
+     * Returns the full address for display, including apt if present.
+     */
+    public String addressForDisplay() {
+        if (apt != null && !apt.isBlank()) {
+            return address + " " + apt;
+        }
+        return address;
+    }
 
     /**
      * Returns the first word of the name for display, with any comma removed.
