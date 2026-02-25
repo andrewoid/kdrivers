@@ -77,7 +77,7 @@ class DriverRoutePdfGenerator {
 
                 if (includeMap) {
                     // Map
-                    byte[] mapImageBytes = mapGenerator.generateMapImage(deliveries);
+                    byte[] mapImageBytes = mapGenerator.generateMapImage(deliveries, driver);
                     PDImageXObject mapImage = PDImageXObject.createFromByteArray(document, mapImageBytes, "map.png");
 
                     float imageWidth = 400;

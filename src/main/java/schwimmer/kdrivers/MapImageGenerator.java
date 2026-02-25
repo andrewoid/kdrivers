@@ -54,15 +54,22 @@ class MapImageGenerator {
             .addNetworkInterceptor(CACHE_CONTROL_INTERCEPTOR)
             .build();
 
-    byte[] generateMapImage(List<Delivery> deliveries) throws IOException {
-        if (deliveries.isEmpty()) {
+    byte[] generateMapImage(List<Delivery> deliveries, Driver driver) throws IOException {
+        if (deliveries.isEmpty() && (driver == null || !driver.hasCoordinates())) {
             return createEmptyMapPlaceholder();
         }
 
-        double minLat = deliveries.stream().mapToDouble(Delivery::latitude).min().orElse(0);
-        double maxLat = deliveries.stream().mapToDouble(Delivery::latitude).max().orElse(0);
-        double minLon = deliveries.stream().mapToDouble(Delivery::longitude).min().orElse(0);
-        double maxLon = deliveries.stream().mapToDouble(Delivery::longitude).max().orElse(0);
+        double minLat = deliveries.stream().mapToDouble(Delivery::latitude).min().orElse(Double.MAX_VALUE);
+        double maxLat = deliveries.stream().mapToDouble(Delivery::latitude).max().orElse(Double.MIN_VALUE);
+        double minLon = deliveries.stream().mapToDouble(Delivery::longitude).min().orElse(Double.MAX_VALUE);
+        double maxLon = deliveries.stream().mapToDouble(Delivery::longitude).max().orElse(Double.MIN_VALUE);
+
+        if (driver != null && driver.hasCoordinates()) {
+            minLat = Math.min(minLat, driver.getLatitude());
+            maxLat = Math.max(maxLat, driver.getLatitude());
+            minLon = Math.min(minLon, driver.getLongitude());
+            maxLon = Math.max(maxLon, driver.getLongitude());
+        }
 
         // Minimal padding to zoom in as much as possible
         double latSpan = Math.max((maxLat - minLat) * 0.05, 0.001);
@@ -96,14 +103,26 @@ class MapImageGenerator {
             }
         }
 
-        // Draw numbered markers
+        // Draw driver's address (start) in green if present and not already in deliveries
+        boolean driverInList = deliveries.stream().anyMatch(d -> d.id().endsWith("-home"));
+        if (driver != null && driver.hasCoordinates() && !driverInList) {
+            int px = lonToPixel(driver.getLongitude(), zoom) - minTileX * TILE_SIZE;
+            int py = latToPixel(driver.getLatitude(), zoom) - minTileY * TILE_SIZE;
+            g.setColor(new Color(34, 139, 34));
+            g.fillOval(px - 12, py - 12, 24, 24);
+            g.setColor(Color.WHITE);
+            g.drawOval(px - 12, py - 12, 24, 24);
+        }
+
+        // Draw numbered markers (red for deliveries, green for driver's home when in list)
         g.setFont(new Font("SansSerif", Font.BOLD, 14));
         for (int i = 0; i < deliveries.size(); i++) {
             Delivery d = deliveries.get(i);
             int px = lonToPixel(d.longitude(), zoom) - minTileX * TILE_SIZE;
             int py = latToPixel(d.latitude(), zoom) - minTileY * TILE_SIZE;
 
-            g.setColor(new Color(220, 53, 69));
+            boolean isDriverAddress = d.id().endsWith("-home");
+            g.setColor(isDriverAddress ? new Color(34, 139, 34) : new Color(220, 53, 69));
             g.fillOval(px - 12, py - 12, 24, 24);
             g.setColor(Color.WHITE);
             g.drawOval(px - 12, py - 12, 24, 24);

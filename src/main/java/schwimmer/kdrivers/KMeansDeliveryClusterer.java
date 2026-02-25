@@ -7,25 +7,15 @@ import org.apache.commons.math3.ml.distance.EuclideanDistance;
 import org.apache.commons.math3.random.JDKRandomGenerator;
 
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.List;
 
 /**
- * Clusters deliveries using K-means, assigns each cluster to the nearest driver (1:1),
- * and redistributes when any driver exceeds 14 deliveries. Does not add driver's home to clusters.
+ * Clusters deliveries using K-means with 1.7 * drivers clusters, assigns each cluster to the
+ * nearest driver with capacity, and redistributes when any driver exceeds 15 deliveries.
  */
 public class KMeansDeliveryClusterer implements DeliveryClusterer {
 
-    private static final int MAX_DELIVERIES_PER_CLUSTER = 14;
-    private final int maxDeliveriesPerCluster;
-
-    public KMeansDeliveryClusterer() {
-        this(MAX_DELIVERIES_PER_CLUSTER);
-    }
-
-    public KMeansDeliveryClusterer(int maxDeliveriesPerCluster) {
-        this.maxDeliveriesPerCluster = maxDeliveriesPerCluster;
-    }
+    private static final int MAX_DELIVERIES_PER_DRIVER = 15;
 
     @Override
     public List<Driver> clusterAndAssign(List<Delivery> deliveries, List<Driver> drivers) {
@@ -37,11 +27,11 @@ public class KMeansDeliveryClusterer implements DeliveryClusterer {
             return drivers;
         }
 
-        if (deliveries.size() > drivers.size() * MAX_DELIVERIES_PER_CLUSTER) {
+        if (deliveries.size() > drivers.size() * MAX_DELIVERIES_PER_DRIVER) {
             throw new IllegalArgumentException(
                     "Deliveries (" + deliveries.size() + ") exceeds capacity: " + drivers.size()
-                            + " drivers * " + MAX_DELIVERIES_PER_CLUSTER + " max = "
-                            + (drivers.size() * MAX_DELIVERIES_PER_CLUSTER));
+                            + " drivers * " + MAX_DELIVERIES_PER_DRIVER + " max = "
+                            + (drivers.size() * MAX_DELIVERIES_PER_DRIVER));
         }
 
         // Wrap deliveries for K-means (Clusterable requires getPoint())
@@ -50,71 +40,42 @@ public class KMeansDeliveryClusterer implements DeliveryClusterer {
             clusterableDeliveries.add(new ClusterableDelivery(d));
         }
 
-        int k = Math.min(drivers.size(), deliveries.size());
+        int k = Math.max(1, Math.min((int) Math.ceil(1.7 * drivers.size()), deliveries.size()));
         var random = new JDKRandomGenerator();
         random.setSeed(42);
         var clusterer = new KMeansPlusPlusClusterer<ClusterableDelivery>(k, -1, new EuclideanDistance(), random);
         List<CentroidCluster<ClusterableDelivery>> centroidClusters = clusterer.cluster(clusterableDeliveries);
 
-        // 1:1 cluster-to-driver assignment: each cluster goes to nearest unassigned driver
-        List<Integer> driversWithCoordinates = new ArrayList<>();
-        for (int i = 0; i < drivers.size(); i++) {
-            if (drivers.get(i).hasCoordinates()) {
-                driversWithCoordinates.add(i);
-            }
-        }
-
-        // driverAssigned[i] = true if driver index i (in driversWithCoordinates) has a cluster
-        BitSet driverAssigned = new BitSet(driversWithCoordinates.size());
-        // clusterToDriverIdx[clusterIdx] = index into driversWithCoordinates, or -1
-        int[] clusterToDriverIdx = new int[centroidClusters.size()];
-        for (int c = 0; c < clusterToDriverIdx.length; c++) {
-            clusterToDriverIdx[c] = -1;
-        }
-
-        for (int c = 0; c < centroidClusters.size(); c++) {
-            CentroidCluster<ClusterableDelivery> cluster = centroidClusters.get(c);
-            double[] centroid = cluster.getCenter().getPoint();
-            double cx = centroid[0];
-            double cy = centroid[1];
-
-            int nearestUnassignedIdx = -1;
-            double nearestDist = Double.MAX_VALUE;
-
-            for (int di = 0; di < driversWithCoordinates.size(); di++) {
-                if (driverAssigned.get(di)) {
-                    continue;
-                }
-                int driverIdx = driversWithCoordinates.get(di);
-                Driver driver = drivers.get(driverIdx);
-                double dist = distance(cx, cy, driver.getLatitude(), driver.getLongitude());
-                if (dist < nearestDist) {
-                    nearestDist = dist;
-                    nearestUnassignedIdx = di;
-                }
-            }
-
-            if (nearestUnassignedIdx >= 0) {
-                driverAssigned.set(nearestUnassignedIdx);
-                clusterToDriverIdx[c] = nearestUnassignedIdx;
-            }
-        }
-
-        // Build driver index -> list of deliveries (driver index = index in drivers list)
+        // Assign each cluster to the nearest driver with capacity (multiple clusters per driver allowed)
         List<List<Delivery>> clustersByDriver = new ArrayList<>();
         for (int i = 0; i < drivers.size(); i++) {
             clustersByDriver.add(new ArrayList<>());
         }
 
-        for (int c = 0; c < centroidClusters.size(); c++) {
-            int di = clusterToDriverIdx[c];
-            if (di < 0) {
-                continue;
+        for (CentroidCluster<ClusterableDelivery> cluster : centroidClusters) {
+            double[] centroid = cluster.getCenter().getPoint();
+            double cx = centroid[0];
+            double cy = centroid[1];
+
+            int nearestDriver = -1;
+            double nearestDist = Double.MAX_VALUE;
+
+            for (int i = 0; i < drivers.size(); i++) {
+                Driver driver = drivers.get(i);
+                if (!driver.hasCoordinates()) {
+                    continue;
+                }
+                double dist = distance(cx, cy, driver.getLatitude(), driver.getLongitude());
+                if (dist < nearestDist) {
+                    nearestDist = dist;
+                    nearestDriver = i;
+                }
             }
-            int driverIdx = driversWithCoordinates.get(di);
-            List<Delivery> clusterDeliveries = clustersByDriver.get(driverIdx);
-            for (ClusterableDelivery cd : centroidClusters.get(c).getPoints()) {
-                clusterDeliveries.add(cd.delivery);
+
+            if (nearestDriver >= 0) {
+                for (ClusterableDelivery cd : cluster.getPoints()) {
+                    clustersByDriver.get(nearestDriver).add(cd.delivery);
+                }
             }
         }
 
@@ -125,7 +86,7 @@ public class KMeansDeliveryClusterer implements DeliveryClusterer {
             for (int donorIdx = 0; donorIdx < drivers.size(); donorIdx++) {
                 List<Delivery> donorCluster = clustersByDriver.get(donorIdx);
                 Driver donorDriver = drivers.get(donorIdx);
-                if (!donorDriver.hasCoordinates() || donorCluster.size() <= MAX_DELIVERIES_PER_CLUSTER) {
+                if (!donorDriver.hasCoordinates() || donorCluster.size() <= MAX_DELIVERIES_PER_DRIVER) {
                     continue;
                 }
 
@@ -158,7 +119,7 @@ public class KMeansDeliveryClusterer implements DeliveryClusterer {
                         continue;
                     }
                     List<Delivery> recipientCluster = clustersByDriver.get(i);
-                    if (recipientCluster.size() >= MAX_DELIVERIES_PER_CLUSTER) {
+                    if (recipientCluster.size() >= MAX_DELIVERIES_PER_DRIVER) {
                         continue;
                     }
                     Driver recipientDriver = drivers.get(i);
