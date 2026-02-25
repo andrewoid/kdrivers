@@ -46,11 +46,14 @@ public class Main {
             CsvLoader.CsvRow row = loadResult.drivers().get(i);
             Driver driver = new Driver("DRV" + (i + 1), row.name(), row.address());
             if (!row.address().isBlank()) {
-                geocoder.geocode(row.address()).ifPresent(coords ->
+                var result = geocoder.geocode(row.address());
+                result.coordinates().ifPresent(coords ->
                         driver.setCoordinates(coords.latitude(), coords.longitude()));
+                if (!result.fromCache()) {
+                    Thread.sleep(1100);
+                }
             }
             drivers.add(driver);
-            Thread.sleep(1100);
         }
 
         // Geocode deliveries
@@ -61,9 +64,12 @@ public class Main {
                 continue;
             }
             final int index = i + 1;
-            geocoder.geocode(row.address()).ifPresent(coords ->
+            var result = geocoder.geocode(row.address());
+            result.coordinates().ifPresent(coords ->
                     deliveries.add(new Delivery("D" + index, coords.latitude(), coords.longitude(), row.address())));
-            Thread.sleep(1100);
+            if (!result.fromCache()) {
+                Thread.sleep(1100);
+            }
         }
 
         List<Driver> assignedDrivers = new DeliveryClusterer(15).clusterAndAssign(deliveries, drivers);

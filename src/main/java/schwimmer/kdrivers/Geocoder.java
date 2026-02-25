@@ -87,29 +87,32 @@ public class Geocoder {
      * Caches results via OkHttp to avoid repeated API calls.
      *
      * @param address the address to look up (e.g. "123 Main St, New York NY")
-     * @return Optional containing (lat, lon) if found, empty if not found or on error
+     * @return GeocodeResult with coordinates (if found) and whether the result was from cache
      */
-    public Optional<Coordinates> geocode(String address) {
+    public GeocodeResult geocode(String address) {
         try {
             var response = api.search(address, "json", 1).execute();
+            boolean fromCache = response.raw().cacheResponse() != null;
             if (!response.isSuccessful() || response.body() == null) {
-                return Optional.empty();
+                return new GeocodeResult(Optional.empty(), fromCache);
             }
 
             List<NominatimResult> results = response.body();
             if (results.isEmpty()) {
-                return Optional.empty();
+                return new GeocodeResult(Optional.empty(), fromCache);
             }
 
             NominatimResult first = results.get(0);
             double lat = Double.parseDouble(first.lat());
             double lon = Double.parseDouble(first.lon());
-            return Optional.of(new Coordinates(lat, lon));
+            return new GeocodeResult(Optional.of(new Coordinates(lat, lon)), fromCache);
 
         } catch (Exception e) {
-            return Optional.empty();
+            return new GeocodeResult(Optional.empty(), false);
         }
     }
 
     public record Coordinates(double latitude, double longitude) {}
+
+    public record GeocodeResult(Optional<Coordinates> coordinates, boolean fromCache) {}
 }
