@@ -4,45 +4,70 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+
 /**
- * Example program that clusters deliveries using K-means and assigns clusters to drivers.
+ * Clusters deliveries from CSV using K-means and assigns clusters to drivers by proximity.
+ * Usage: kdrivers <csv-file> [--no-map]
  */
 public class Main {
 
     public static void main(String[] args) throws InterruptedException {
-        // Parse --no-map flag
-        boolean includeMap = true;
-        List<String> argList = new ArrayList<>(Arrays.asList(args));
-        if (argList.remove("--no-map")) {
-            includeMap = false;
+        List<String> argList = new ArrayList<>(List.of(args));
+        boolean includeMap = !argList.remove("--no-map");
+
+        if (argList.isEmpty()) {
+            System.err.println("Usage: kdrivers <csv-file> [--no-map]");
+            System.err.println("  CSV must have columns: name, address, driver");
+            System.err.println("  Rows with 'Driver' in driver column are drivers.");
+            System.exit(1);
         }
 
-        List<Delivery> deliveries;
+        Path csvPath = Path.of(argList.get(0));
 
-        if (!argList.isEmpty()) {
-            // Geocode addresses from command line
-            deliveries = geocodeAddresses(argList.toArray(new String[0]));
-            if (deliveries.isEmpty()) {
-                System.err.println("No addresses could be geocoded. Using sample data.");
-                deliveries = sampleDeliveries();
+        CsvLoader.LoadResult loadResult;
+        try {
+            loadResult = new CsvLoader().load(csvPath);
+        } catch (IOException e) {
+            System.err.println("Failed to read CSV: " + e.getMessage());
+            System.exit(1);
+            return;
+        } catch (IllegalArgumentException e) {
+            System.err.println(e.getMessage());
+            System.exit(1);
+            return;
+        }
+
+        Geocoder geocoder = new Geocoder();
+
+        // Geocode drivers
+        List<Driver> drivers = new ArrayList<>();
+        for (int i = 0; i < loadResult.drivers().size(); i++) {
+            CsvLoader.CsvRow row = loadResult.drivers().get(i);
+            Driver driver = new Driver("DRV" + (i + 1), row.name(), row.address());
+            if (!row.address().isBlank()) {
+                geocoder.geocode(row.address()).ifPresent(coords ->
+                        driver.setCoordinates(coords.latitude(), coords.longitude()));
             }
-        } else {
-            deliveries = sampleDeliveries();
+            drivers.add(driver);
+            Thread.sleep(1100);
         }
 
-        // Drivers to assign
-        List<Driver> drivers = Arrays.asList(
-                new Driver("DRV1", "Alice"),
-                new Driver("DRV2", "Bob"),
-                new Driver("DRV3", "Carol")
-        );
+        // Geocode deliveries
+        List<Delivery> deliveries = new ArrayList<>();
+        for (int i = 0; i < loadResult.deliveries().size(); i++) {
+            CsvLoader.CsvRow row = loadResult.deliveries().get(i);
+            if (row.address().isBlank()) {
+                continue;
+            }
+            final int index = i + 1;
+            geocoder.geocode(row.address()).ifPresent(coords ->
+                    deliveries.add(new Delivery("D" + index, coords.latitude(), coords.longitude(), row.address())));
+            Thread.sleep(1100);
+        }
 
-        // Cluster into 3 groups and assign to drivers
-        int numClusters = 3;
-        DeliveryClusterer clusterer = new DeliveryClusterer(numClusters);
-        List<Driver> assignedDrivers = clusterer.clusterAndAssign(deliveries, drivers);
+        int numClusters = Math.min(drivers.size(), deliveries.isEmpty() ? 0 : deliveries.size());
+        List<Driver> assignedDrivers = new DeliveryClusterer(numClusters).clusterAndAssign(deliveries, drivers);
 
         System.out.println("Delivery clustering results (" + numClusters + " clusters):\n");
         for (Driver driver : assignedDrivers) {
@@ -53,7 +78,6 @@ public class Main {
             System.out.println();
         }
 
-        // Generate PDFs
         Path outputDir = Path.of("routes");
         try {
             Files.createDirectories(outputDir);
@@ -63,7 +87,6 @@ public class Main {
                 pdfGenerator.generatePdf(driver, pdfPath);
                 System.out.println("Generated: " + pdfPath.toAbsolutePath());
             }
-            // Generate summary PDF listing all drivers and their deliveries
             Path summaryPath = outputDir.resolve("driver-assignments.pdf");
             new DriverSummaryPdfGenerator().generatePdf(assignedDrivers, summaryPath);
             System.out.println("Generated: " + summaryPath.toAbsolutePath());
@@ -74,32 +97,5 @@ public class Main {
 
     private static String sanitizeFilename(String name) {
         return name.replaceAll("[^a-zA-Z0-9.-]", "_");
-    }
-
-    private static List<Delivery> sampleDeliveries() {
-        return Arrays.asList(
-                new Delivery("D1", 40.7128, -74.0060, "123 Main St"),
-                new Delivery("D2", 40.7200, -74.0100, "456 Oak Ave"),
-                new Delivery("D3", 40.7150, -74.0050, "789 Pine Rd"),
-                new Delivery("D4", 40.7500, -73.9800, "321 Elm St"),
-                new Delivery("D5", 40.7550, -73.9750, "654 Maple Dr"),
-                new Delivery("D6", 40.7520, -73.9820, "987 Cedar Ln"),
-                new Delivery("D7", 40.7050, -74.0200, "111 Birch St"),
-                new Delivery("D8", 40.7080, -74.0150, "222 Spruce Ave"),
-                new Delivery("D9", 40.7100, -74.0120, "333 Walnut Rd")
-        );
-    }
-
-    private static List<Delivery> geocodeAddresses(String[] addresses) throws InterruptedException {
-        Geocoder geocoder = new Geocoder();
-        List<Delivery> deliveries = new ArrayList<>();
-        for (int i = 0; i < addresses.length; i++) {
-            final int index = i + 1;
-            String address = addresses[i];
-            geocoder.geocode(address).ifPresent(coords ->
-                    deliveries.add(new Delivery("D" + index, coords.latitude(), coords.longitude(), address)));
-            Thread.sleep(1100); // Nominatim: max 1 request/second
-        }
-        return deliveries;
     }
 }

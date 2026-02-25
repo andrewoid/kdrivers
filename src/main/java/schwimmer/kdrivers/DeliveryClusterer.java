@@ -4,11 +4,13 @@ import org.apache.commons.math3.ml.clustering.CentroidCluster;
 import org.apache.commons.math3.ml.clustering.KMeansPlusPlusClusterer;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Clusters deliveries using K-means++ and assigns each cluster to a driver.
+ * Clusters deliveries using K-means++ and assigns each cluster to the nearest driver by proximity.
  */
 public class DeliveryClusterer {
 
@@ -25,7 +27,7 @@ public class DeliveryClusterer {
     }
 
     /**
-     * Clusters deliveries into N groups and assigns each group to a driver.
+     * Clusters deliveries into N groups and assigns each group to the driver nearest the cluster centroid.
      *
      * @param deliveries the deliveries to cluster
      * @param drivers   the drivers to assign (must have at least numClusters drivers)
@@ -33,36 +35,74 @@ public class DeliveryClusterer {
      */
     public List<Driver> clusterAndAssign(List<Delivery> deliveries, List<Driver> drivers) {
         if (deliveries.isEmpty()) {
-            return drivers;
+            return new ArrayList<>(drivers);
         }
 
-        // If we have more clusters than deliveries, limit clusters to delivery count
         int k = Math.min(numClusters, deliveries.size());
         if (k > drivers.size()) {
             throw new IllegalArgumentException(
                     "Need at least " + k + " drivers but only " + drivers.size() + " provided");
         }
 
-        // Convert deliveries to clusterable points
         List<DeliveryPoint> points = deliveries.stream()
                 .map(DeliveryPoint::new)
                 .collect(Collectors.toList());
 
-        // Run K-means clustering
         KMeansPlusPlusClusterer<DeliveryPoint> clusterer = new KMeansPlusPlusClusterer<>(k, maxIterations);
         List<CentroidCluster<DeliveryPoint>> clusters = clusterer.cluster(points);
 
-        // Assign each cluster to a driver (one-to-one)
+        // Assign each cluster to the nearest driver (one-to-one, by proximity to centroid)
+        Set<Driver> assignedDrivers = new HashSet<>();
         List<Driver> result = new ArrayList<>();
-        for (int i = 0; i < clusters.size(); i++) {
-            Driver driver = drivers.get(i);
-            CentroidCluster<DeliveryPoint> cluster = clusters.get(i);
-            for (DeliveryPoint point : cluster.getPoints()) {
-                driver.addDelivery(point.delivery());
+
+        for (CentroidCluster<DeliveryPoint> cluster : clusters) {
+            double[] centroid = cluster.getCenter().getPoint();
+            double centroidLat = centroid[0];
+            double centroidLon = centroid[1];
+
+            Driver nearest = null;
+            double nearestDist = Double.MAX_VALUE;
+
+            for (Driver driver : drivers) {
+                if (assignedDrivers.contains(driver)) {
+                    continue;
+                }
+                double dist = driver.hasCoordinates()
+                        ? distance(centroidLat, centroidLon, driver.getLatitude(), driver.getLongitude())
+                        : Double.MAX_VALUE;
+                if (dist < nearestDist) {
+                    nearestDist = dist;
+                    nearest = driver;
+                }
             }
-            result.add(driver);
+
+            if (nearest == null) {
+                nearest = drivers.stream()
+                        .filter(d -> !assignedDrivers.contains(d))
+                        .findFirst()
+                        .orElseThrow();
+            }
+
+            assignedDrivers.add(nearest);
+            for (DeliveryPoint point : cluster.getPoints()) {
+                nearest.addDelivery(point.delivery());
+            }
+            result.add(nearest);
+        }
+
+        // Add drivers that weren't assigned any cluster (empty assignment)
+        for (Driver driver : drivers) {
+            if (!assignedDrivers.contains(driver)) {
+                result.add(driver);
+            }
         }
 
         return result;
+    }
+
+    private static double distance(double lat1, double lon1, double lat2, double lon2) {
+        double dLat = lat2 - lat1;
+        double dLon = lon2 - lon1;
+        return Math.sqrt(dLat * dLat + dLon * dLon);
     }
 }
