@@ -6,6 +6,8 @@ import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
+import org.apache.pdfbox.pdmodel.graphics.color.PDColor;
+import org.apache.pdfbox.pdmodel.graphics.color.PDDeviceRGB;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 
 import java.io.IOException;
@@ -49,7 +51,17 @@ class DriverRoutePdfGenerator {
                 content.newLineAtOffset(margin, y);
                 content.showText("Route Sheet: " + driver.getName());
                 content.endText();
-                y -= 30;
+                y -= 24;
+
+                // Reminder in red
+                content.setNonStrokingColor(new PDColor(new float[]{0.8f, 0, 0}, PDDeviceRGB.INSTANCE));
+                content.beginText();
+                content.setFont(bodyFont, 10);
+                content.newLineAtOffset(margin, y);
+                content.showText("Please remember to take one package for yourself");
+                content.endText();
+                content.setNonStrokingColor(new PDColor(new float[]{0, 0, 0}, PDDeviceRGB.INSTANCE));
+                y -= 24;
 
                 // Address list
                 content.beginText();
