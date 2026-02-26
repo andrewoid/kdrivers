@@ -35,29 +35,32 @@ Clusters delivery addresses and assigns each cluster to the nearest driver. Gene
 
 ## CSV Format
 
-The CSV must have columns: `name`, `address`, `driver`. Optional columns: `apt`, `ignore`.
+The CSV must have columns: `name`, `address`, `driver`. Optional columns: `apt`, `assign_to`, `ignore`.
 
-| Column   | Description                                                                 |
-|----------|-----------------------------------------------------------------------------|
-| name     | Person or delivery name                                                    |
-| address  | Street address (used for geocoding and clustering)                        |
-| apt      | Optional. Apartment/unit (not sent to geocoder; shown in PDF and summary)   |
-| driver   | If this column contains "Driver" (case-insensitive), the row is a driver   |
-| ignore   | Optional. If this column has any value, the row is excluded from processing |
+| Column    | Description                                                                 |
+|-----------|-----------------------------------------------------------------------------|
+| name      | Person or delivery name                                                    |
+| address   | Street address (used for geocoding and clustering)                        |
+| apt       | Optional. Apartment/unit (not sent to geocoder; shown in PDF and summary)   |
+| driver    | If this column contains "Driver" (case-insensitive), the row is a driver   |
+| assign_to | Optional. Driver name to force this delivery to (override clustering)      |
+| ignore    | Optional. If this column has any value, the row is excluded from processing |
 
 **Example:**
 
 ```csv
-name,address,apt,driver,ignore
-Alice,123 Main St New York NY,,Driver,
-Bob,456 Oak Ave Boston MA,,Driver,
-John,321 Elm St New York NY,Apt 4B,,
+name,address,apt,driver,assign_to,ignore
+Alice,123 Main St New York NY,,Driver,,
+Bob,456 Oak Ave Boston MA,,Driver,,
+John,321 Elm St New York NY,Apt 4B,,,
+Joe,987 Cedar Ln New York NY,,,Alice,
 Jane,654 Maple Dr New York NY,,,x
 ```
 
-- **Alice** and **Bob** are drivers (they get assigned clusters of deliveries).
+- **Alice** and **Bob** are drivers.
 - **John** is a delivery address (clustered by location).
-- **Jane** is excluded because the ignore column has a value.
+- **Joe** is forced to Alice via `assign_to` (override).
+- **Jane** is excluded by the ignore column.
 
 ## Algorithm
 

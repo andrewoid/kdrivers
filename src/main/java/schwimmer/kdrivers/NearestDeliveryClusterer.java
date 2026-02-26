@@ -40,27 +40,26 @@ public class NearestDeliveryClusterer implements DeliveryClusterer {
             clusters.add(new ArrayList<>());
         }
 
-        // Assign each non-driver delivery to nearest driver (with coordinates)
         for (Delivery delivery : deliveries) {
-            int nearestIdx = -1;
-            double nearestDist = Double.MAX_VALUE;
-
-            for (int i = 0; i < drivers.size(); i++) {
-                Driver driver = drivers.get(i);
-                if (!driver.hasCoordinates()) {
-                    continue;
-                }
-                double dist = distance(
-                        delivery.latitude(), delivery.longitude(),
-                        driver.getLatitude(), driver.getLongitude());
-                if (dist < nearestDist) {
-                    nearestDist = dist;
-                    nearestIdx = i;
+            int assignIdx = -1;
+            if (delivery.assignToDriverName() != null && !delivery.assignToDriverName().isBlank()) {
+                assignIdx = findDriverByName(drivers, delivery.assignToDriverName());
+            }
+            if (assignIdx < 0) {
+                double nearestDist = Double.MAX_VALUE;
+                for (int i = 0; i < drivers.size(); i++) {
+                    Driver driver = drivers.get(i);
+                    if (!driver.hasCoordinates()) continue;
+                    double dist = distance(delivery.latitude(), delivery.longitude(),
+                            driver.getLatitude(), driver.getLongitude());
+                    if (dist < nearestDist) {
+                        nearestDist = dist;
+                        assignIdx = i;
+                    }
                 }
             }
-
-            if (nearestIdx >= 0) {
-                clusters.get(nearestIdx).add(delivery);
+            if (assignIdx >= 0) {
+                clusters.get(assignIdx).add(delivery);
             }
         }
 
@@ -83,7 +82,10 @@ public class NearestDeliveryClusterer implements DeliveryClusterer {
                 for (int j = 0; j < donorCluster.size(); j++) {
                     Delivery d = donorCluster.get(j);
                     if (d.id().endsWith("-home")) {
-                        continue; // Never move driver's address
+                        continue;
+                    }
+                    if (d.assignToDriverName() != null && !d.assignToDriverName().isBlank()) {
+                        continue;
                     }
                     double distFromDonor = distance(d.latitude(), d.longitude(),
                             donorDriver.getLatitude(), donorDriver.getLongitude());
@@ -139,6 +141,16 @@ public class NearestDeliveryClusterer implements DeliveryClusterer {
         }
 
         return drivers;
+    }
+
+    private static int findDriverByName(List<Driver> drivers, String name) {
+        String normalized = name.trim().toLowerCase();
+        for (int i = 0; i < drivers.size(); i++) {
+            if (drivers.get(i).getName().trim().toLowerCase().equals(normalized)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private static double distance(double lat1, double lon1, double lat2, double lon2) {

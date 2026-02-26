@@ -17,10 +17,10 @@ import java.util.List;
  */
 class CsvLoader {
 
-    private static final String[] HEADERS = {"name", "address", "apt", "driver", "ignore"};
+    private static final String[] HEADERS = {"name", "address", "apt", "driver", "assign_to", "ignore"};
     private static final String DRIVER_MARKER = "driver";
 
-    record CsvRow(String name, String address, String apt, String driverColumn) {
+    record CsvRow(String name, String address, String apt, String driverColumn, String assignTo) {
         boolean isDriver() {
             return driverColumn != null && driverColumn.trim().toLowerCase().contains(DRIVER_MARKER);
         }
@@ -56,6 +56,7 @@ class CsvLoader {
                 String address = get(record, "address");
                 String apt = get(record, "apt");
                 String driverCol = get(record, "driver");
+                String assignTo = get(record, "assign_to");
                 String ignore = get(record, "ignore");
 
                 if (name == null || name.isBlank()) {
@@ -65,7 +66,8 @@ class CsvLoader {
                     continue;
                 }
 
-                CsvRow row = new CsvRow(name, address != null ? address : "", apt != null ? apt : "", driverCol != null ? driverCol : "");
+                CsvRow row = new CsvRow(name, address != null ? address : "", apt != null ? apt : "",
+                        driverCol != null ? driverCol : "", assignTo != null ? assignTo : "");
                 if (row.isDriver()) {
                     drivers.add(row);
                 } else {

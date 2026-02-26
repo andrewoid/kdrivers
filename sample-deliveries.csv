@@ -1,10 +1,10 @@
-name,address,driver
-Alice,123 Main St New York NY,Driver
-Bob,456 Oak Ave Boston MA,Driver
-Carol,789 Pine Rd Chicago IL,Driver
-John,321 Elm St New York NY,
-Jane,654 Maple Dr New York NY,
-Joe,987 Cedar Ln New York NY,
-Mary,111 Birch St Boston MA,
-Mike,222 Spruce Ave Boston MA,
-Sue,333 Walnut Rd Chicago IL,
+name,address,apt,driver,assign_to,ignore
+Alice,123 Main St New York NY,,Driver,,
+Bob,456 Oak Ave Boston MA,,Driver,,
+Carol,789 Pine Rd Chicago IL,,Driver,,
+John,321 Elm St New York NY,,,,
+Jane,654 Maple Dr New York NY,,,,
+Joe,987 Cedar Ln New York NY,,,Alice,
+Mary,111 Birch St Boston MA,,,,
+Mike,222 Spruce Ave Boston MA,,,,
+Sue,333 Walnut Rd Chicago IL,,,,

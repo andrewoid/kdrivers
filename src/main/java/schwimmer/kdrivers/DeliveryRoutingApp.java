@@ -81,7 +81,8 @@ class DeliveryRoutingApp {
             } else {
                 result.coordinates().ifPresent(coords ->
                         deliveries.add(new Delivery("D" + index, coords.latitude(), coords.longitude(),
-                                row.address(), row.name(), row.apt())));
+                                row.address(), row.name(), row.apt(),
+                                row.assignTo() != null && !row.assignTo().isBlank() ? row.assignTo() : null)));
             }
             if (!result.fromCache()) {
                 Thread.sleep(1100);

@@ -3,8 +3,10 @@ package schwimmer.kdrivers;
 /**
  * Represents a delivery with geographic coordinates for clustering.
  * The apt field is for display only (not used for geocoding).
+ * When assignToDriverName is set, the delivery is forced to that driver (override).
  */
-public record Delivery(String id, double latitude, double longitude, String address, String name, String apt) {
+public record Delivery(String id, double latitude, double longitude, String address, String name, String apt,
+                       String assignToDriverName) {
 
     /**
      * Returns the full address for display, including apt if present.
