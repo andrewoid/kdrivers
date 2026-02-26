@@ -76,13 +76,14 @@ Jane,654 Maple Dr New York NY,,,x
 
 ## Output
 
-PDFs are written to the `routes/` directory. Any existing PDFs in that directory are deleted before new ones are generated.
+PDFs are written to the `routes/` directory. Any existing PDFs in that directory are deleted before new ones are generated. After generation, the entire `routes/` directory is zipped as `routes.zip` in the project root.
 
 | File                     | Description                                        |
 |--------------------------|----------------------------------------------------|
 | `{driver-name}.pdf`      | Route sheet for each driver (addresses + map)      |
 | `driver-assignments.txt` | Summary of all drivers and their deliveries        |
 | `unresolved-addresses.txt` | Names and addresses that could not be geocoded (only created if any exist) |
+| `routes.zip`             | Zip archive of the `routes/` directory              |
 
 ## Caching
 

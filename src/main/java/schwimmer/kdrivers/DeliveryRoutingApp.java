@@ -5,6 +5,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 /**
  * Application logic for clustering deliveries and generating route output.
@@ -114,8 +116,9 @@ class DeliveryRoutingApp {
             generatePdfs(assignedDrivers, includeMap);
             generateSummary(assignedDrivers);
             generateUnresolvedFile(unresolvedAddresses);
+            zipRoutesDirectory();
         } catch (IOException e) {
-            System.err.println("Failed to generate PDFs: " + e.getMessage());
+            System.err.println("Failed to generate output: " + e.getMessage());
         }
     }
 
@@ -155,6 +158,26 @@ class DeliveryRoutingApp {
             Files.writeString(unresolvedPath, content);
             System.out.println("Generated: " + unresolvedPath.toAbsolutePath());
         }
+    }
+
+    private void zipRoutesDirectory() throws IOException {
+        Path zipPath = Path.of("routes.zip");
+        try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(zipPath))) {
+            try (var stream = Files.walk(OUTPUT_DIR)) {
+                stream.filter(p -> !Files.isDirectory(p))
+                        .forEach(p -> {
+                            try {
+                                String entryName = OUTPUT_DIR.relativize(p).toString().replace("\\", "/");
+                                zos.putNextEntry(new ZipEntry("routes/" + entryName));
+                                Files.copy(p, zos);
+                                zos.closeEntry();
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
+                            }
+                        });
+            }
+        }
+        System.out.println("Generated: " + zipPath.toAbsolutePath());
     }
 
     private static String sanitizeFilename(String name) {
