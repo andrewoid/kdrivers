@@ -15,7 +15,7 @@ import java.util.List;
  */
 public class KMeansDeliveryClusterer implements DeliveryClusterer {
 
-    private static final int MAX_DELIVERIES_PER_DRIVER = 14;
+    private static final int MAX_DELIVERIES_PER_DRIVER = 12;
     /** Weight for load balancing: score = distance * (1 + this * currentCount). Higher = more balance. */
     private static final double BALANCE_WEIGHT = 0.08;
 
@@ -71,7 +71,7 @@ public class KMeansDeliveryClusterer implements DeliveryClusterer {
             clusterable.add(new ClusterableDelivery(d));
         }
 
-        int k = Math.max(1, Math.min((int) Math.ceil(1.7 * drivers.size()), clusterableDeliveries.size()));
+        int k = Math.max(1, Math.min((int) Math.ceil(drivers.size() + 3), clusterableDeliveries.size()));
         var random = new JDKRandomGenerator(42);
         var clusterer = new KMeansPlusPlusClusterer<ClusterableDelivery>(k, -1, new EuclideanDistance(), random);
         List<CentroidCluster<ClusterableDelivery>> centroidClusters = clusterer.cluster(clusterable);

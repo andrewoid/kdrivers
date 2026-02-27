@@ -54,8 +54,10 @@ class DeliveryRoutingApp {
         for (int i = 0; i < loadResult.drivers().size(); i++) {
             CsvLoader.CsvRow row = loadResult.drivers().get(i);
             Driver driver = new Driver("DRV" + (i + 1), row.name(), row.address());
-            if (!row.address().isBlank()) {
-                var result = geocoder.geocode(row.address());
+            String geocodeAddress = (row.lookupAddress() != null && !row.lookupAddress().isBlank())
+                    ? row.lookupAddress() : row.address();
+            if (!geocodeAddress.isBlank()) {
+                var result = geocoder.geocode(geocodeAddress);
                 if (result.coordinates().isEmpty()) {
                     unresolvedAddresses.add(row.name() + " | " + row.address() + " (driver)");
                 } else {
@@ -76,11 +78,13 @@ class DeliveryRoutingApp {
         List<Delivery> deliveries = new ArrayList<>();
         for (int i = 0; i < loadResult.deliveries().size(); i++) {
             CsvLoader.CsvRow row = loadResult.deliveries().get(i);
-            if (row.address().isBlank()) {
+            String geocodeAddress = (row.lookupAddress() != null && !row.lookupAddress().isBlank())
+                    ? row.lookupAddress() : row.address();
+            if (geocodeAddress.isBlank()) {
                 continue;
             }
             int index = i + 1;
-            var result = geocoder.geocode(row.address());
+            var result = geocoder.geocode(geocodeAddress);
             if (result.coordinates().isEmpty()) {
                 unresolvedAddresses.add(row.name() + " | " + row.address() + " (delivery)");
             } else {

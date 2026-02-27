@@ -35,31 +35,32 @@ Clusters delivery addresses and assigns each cluster to the nearest driver. Gene
 
 ## CSV Format
 
-The CSV must have columns: `name`, `address`, `driver`. Optional columns: `apt`, `assign_to`, `ignore`.
+The CSV must have columns: `name`, `address`, `driver`. Optional columns: `apt`, `assign_to`, `ignore`, `lookup_address`.
 
-| Column    | Description                                                                 |
-|-----------|-----------------------------------------------------------------------------|
-| name      | Person or delivery name                                                    |
-| address   | Street address (used for geocoding and clustering)                        |
-| apt       | Optional. Apartment/unit (not sent to geocoder; shown in PDF and summary)   |
-| driver    | If this column contains "Driver" (case-insensitive), the row is a driver   |
-| assign_to | Optional. Driver name to force this delivery to (override clustering)      |
-| ignore    | Optional. If this column has any value, the row is excluded from processing |
+| Column        | Description                                                                 |
+|---------------|-----------------------------------------------------------------------------|
+| name          | Person or delivery name                                                    |
+| address       | Street address (used for display in PDFs and text)                          |
+| apt           | Optional. Apartment/unit (not sent to geocoder; shown in PDF and summary)   |
+| driver        | If this column contains "Driver" (case-insensitive), the row is a driver   |
+| assign_to     | Optional. Driver name to force this delivery to (override clustering)     |
+| ignore        | Optional. If this column has any value, the row is excluded from processing |
+| lookup_address | Optional. Address sent to geocoder when present; otherwise `address` is used |
 
 **Example:**
 
 ```csv
-name,address,apt,driver,assign_to,ignore
-Alice,123 Main St New York NY,,Driver,,
-Bob,456 Oak Ave Boston MA,,Driver,,
-John,321 Elm St New York NY,Apt 4B,,,
-Joe,987 Cedar Ln New York NY,,,Alice,
-Jane,654 Maple Dr New York NY,,,x
+name,address,apt,driver,assign_to,ignore,lookup_address
+Alice,123 Main St New York NY,,Driver,,,
+Bob,456 Oak Ave Boston MA,,Driver,,,
+John,321 Elm St New York NY,Apt 4B,,,,
+Joe,987 Cedar Ln New York NY,,,Alice,,123 Main St New York NY
+Jane,654 Maple Dr New York NY,,,x,
 ```
 
 - **Alice** and **Bob** are drivers.
 - **John** is a delivery address (clustered by location).
-- **Joe** is forced to Alice via `assign_to` (override).
+- **Joe** is forced to Alice via `assign_to` (override); `lookup_address` provides a geocodable address when `address` is informal.
 - **Jane** is excluded by the ignore column.
 
 ## Algorithm
