@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Clusters deliveries using K-means with 1.7 * drivers clusters, assigns each cluster to a driver
+ * Clusters deliveries using K-means with 1.4 * drivers clusters, assigns each cluster to a driver
  * balancing proximity and workload, and redistributes when any driver exceeds 15 deliveries.
  */
 public class KMeansDeliveryClusterer implements DeliveryClusterer {
@@ -71,7 +71,7 @@ public class KMeansDeliveryClusterer implements DeliveryClusterer {
             clusterable.add(new ClusterableDelivery(d));
         }
 
-        int k = Math.max(1, Math.min((int) Math.ceil(drivers.size() + 3), clusterableDeliveries.size()));
+        int k = Math.max(1, Math.min((int) Math.ceil(1.4 * drivers.size()), clusterableDeliveries.size()));
         var random = new JDKRandomGenerator(42);
         var clusterer = new KMeansPlusPlusClusterer<ClusterableDelivery>(k, -1, new EuclideanDistance(), random);
         List<CentroidCluster<ClusterableDelivery>> centroidClusters = clusterer.cluster(clusterable);
