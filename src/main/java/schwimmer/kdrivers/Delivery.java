@@ -8,6 +8,11 @@ package schwimmer.kdrivers;
 public record Delivery(String id, double latitude, double longitude, String address, String name, String apt,
                        String assignToDriverName) {
 
+    /** Returns the address to use for Google Maps links (address field only; lookup_address is for geocoder). */
+    public String addressForMapsLink() {
+        return address;
+    }
+
     /**
      * Returns the full address for display, including apt if present.
      */

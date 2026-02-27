@@ -9,8 +9,12 @@ import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.apache.pdfbox.pdmodel.graphics.color.PDColor;
 import org.apache.pdfbox.pdmodel.graphics.color.PDDeviceRGB;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
+import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotationLink;
+import org.apache.pdfbox.pdmodel.interactive.action.PDActionURI;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -72,6 +76,7 @@ class DriverRoutePdfGenerator {
                 y -= 20;
 
                 content.setFont(bodyFont, 10);
+                float fontSize = 10;
                 for (int i = 0; i < deliveries.size(); i++) {
                     Delivery d = deliveries.get(i);
                     String line = (i + 1) + ". " + d.addressForDisplay();
@@ -83,6 +88,17 @@ class DriverRoutePdfGenerator {
                     content.newLineAtOffset(margin, y);
                     content.showText(line);
                     content.endText();
+
+                    String mapsUrl = "https://www.google.com/maps?q="
+                            + URLEncoder.encode(d.addressForMapsLink(), StandardCharsets.UTF_8);
+                    float textWidth = fontSize * bodyFont.getStringWidth(line) / 1000f;
+                    PDAnnotationLink link = new PDAnnotationLink();
+                    link.setRectangle(new PDRectangle(margin, y - 2, textWidth, 12));
+                    PDActionURI action = new PDActionURI();
+                    action.setURI(mapsUrl);
+                    link.setAction(action);
+                    page.getAnnotations().add(link);
+
                     y -= 14;
                 }
                 y -= 20;
