@@ -4,7 +4,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -19,6 +21,7 @@ class DeliveryRoutingApp {
         CsvLoader.LoadResult loadResult = loadCsv(csvPath);
         GeocodedData geocoded = geocodeAll(loadResult);
         List<Driver> assignedDrivers = clusterAndAssign(geocoded.deliveries(), geocoded.drivers());
+        verifyAllDeliveriesAssigned(geocoded.deliveries(), assignedDrivers);
         printResults(assignedDrivers);
         generateOutput(assignedDrivers, geocoded.unresolvedAddresses(), includeMap);
     }
@@ -95,6 +98,24 @@ class DeliveryRoutingApp {
 
     private List<Driver> clusterAndAssign(List<Delivery> deliveries, List<Driver> drivers) {
         return new KMeansDeliveryClusterer().clusterAndAssign(deliveries, drivers);
+    }
+
+    private void verifyAllDeliveriesAssigned(List<Delivery> deliveries, List<Driver> assignedDrivers) {
+        Set<Delivery> assigned = new HashSet<>();
+        for (Driver driver : assignedDrivers) {
+            assigned.addAll(driver.getAssignedDeliveries());
+        }
+        List<Delivery> unassigned = deliveries.stream()
+                .filter(d -> !assigned.contains(d))
+                .toList();
+        if (!unassigned.isEmpty()) {
+            System.err.println("Deliveries without driver assignment:");
+            for (Delivery d : unassigned) {
+                System.err.println("  - " + d.name() + " | " + d.address() + " (id: " + d.id() + ")");
+            }
+            throw new IllegalStateException(
+                    unassigned.size() + " delivery(ies) were not assigned to any driver");
+        }
     }
 
     private void printResults(List<Driver> assignedDrivers) {
